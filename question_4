@@ -9,30 +9,42 @@ F_qr = np.fft.fft2(qr_noisy)
 F_shifted = np.fft.fftshift(F_qr)
 magnitude_spectrum = np.log(1 + np.abs(F_shifted))
 
-# Visualize the noisy image and its spectrum to identify noise spikes
-fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-axes[0].imshow(qr_noisy, cmap='gray'); axes[0].set_title('Noisy QR Code')
-axes[1].imshow(magnitude_spectrum, cmap='gray'); axes[1].set_title('Centered Magnitude Spectrum')
-plt.show()
+# 3. Create a perfectly symmetric mask
+rows, cols = F_shifted.shape
+mask = np.ones((rows, cols), dtype=bool)
 
-# 3. Manipulate the magnitude to remove noise
-F_clean_shifted = np.copy(F_shifted)
+# Define a highly generous bounding box for the top-left noise block.
+# Expanding the bounds ensures no high-energy slivers are left behind.
+mask[50:950, 50:950] = False
 
-# --- MANUAL MASKING STEP ---
-# Look at the 'magnitude_spectrum' plot above. Identify the (y, x) coordinates 
-# of the bright noise spikes (ignoring the large central bright spot). 
-# Define a small window (e.g., 5x5 pixels) around those spikes and set them to 0.
-# Example format:
-# F_clean_shifted[y_start:y_end, x_start:x_end] = 0 
-# F_clean_shifted[symmetric_y_start:symmetric_y_end, symmetric_x_start:symmetric_x_end] = 0
+# Rotate the mask 180 degrees and combine it to guarantee perfect 
+# conjugate symmetry for the bottom-right block. 
+symmetric_mask = mask & np.rot90(mask, k=2)
+
+# Apply the mask to set the noise coefficients to absolute zero
+F_clean_shifted = F_shifted * symmetric_mask
 
 # 4. Inverse Transform back to spatial domain
 F_clean = np.fft.ifftshift(F_clean_shifted)
 qr_clean = np.real(np.fft.ifft2(F_clean))
 
-# Visualize the cleaned QR code
-plt.figure(figsize=(6, 6))
-plt.imshow(qr_clean, cmap='gray')
-plt.title('Denoised QR Code')
-plt.axis('off')
+# 5. Visualize the results
+fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+
+axes[0, 0].imshow(qr_noisy, cmap='gray')
+axes[0, 0].set_title('Noisy QR Code')
+
+axes[0, 1].imshow(magnitude_spectrum, cmap='gray')
+axes[0, 1].set_title('Original Magnitude Spectrum')
+
+axes[1, 0].imshow(np.log(1 + np.abs(F_clean_shifted)), cmap='gray')
+axes[1, 0].set_title('Cleaned Magnitude Spectrum')
+
+axes[1, 1].imshow(qr_clean, cmap='gray')
+axes[1, 1].set_title('Denoised QR Code')
+
+for ax in axes.flatten():
+    ax.axis('off')
+
+plt.tight_layout()
 plt.show()
