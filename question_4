@@ -15,7 +15,7 @@ mask = np.ones((rows, cols), dtype=bool)
 
 # Define a highly generous bounding box for the top-left noise block.
 # Expanding the bounds ensures no high-energy slivers are left behind.
-mask[50:950, 50:950] = False
+mask[100:850, 100:850] = False
 
 # Rotate the mask 180 degrees and combine it to guarantee perfect 
 # conjugate symmetry for the bottom-right block. 
